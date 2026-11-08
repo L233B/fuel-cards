@@ -51,6 +51,7 @@ input:focus{border-color:var(--pri2);box-shadow:0 0 0 3px rgba(26,139,184,.18)}
 .qr{background:#fff;padding:5px;border-radius:10px;line-height:0;flex:none}
 .qr img,.qr canvas{width:76px!important;height:76px!important}
 .chipc{width:34px;height:26px;border-radius:6px;background:linear-gradient(135deg,#fde68a,#f59e0b);display:inline-block;margin-bottom:6px}
+.ph{width:104px;height:104px;border-radius:50%;border:2px dashed var(--bd);display:grid;place-items:center;overflow:hidden;font-size:12px;text-align:center;color:var(--mut);cursor:pointer;margin:8px auto 4px;padding:8px;transition:transform .15s}.ph:active{transform:scale(.96)}.ph img{width:100%;height:100%;object-fit:cover;margin:-8px;padding:0}
 /* list */
 .item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--bd)}.item:last-child{border:0}
 .av{width:42px;height:42px;border-radius:13px;background:rgba(26,139,184,.14);color:var(--pri2);display:grid;place-items:center;flex:none}
@@ -105,6 +106,8 @@ input:focus{border-color:var(--pri2);box-shadow:0 0 0 3px rgba(26,139,184,.18)}
     <div class="dots"><i class="on" id="d1"></i><i id="d2"></i></div>
     <div class="card" id="pv"></div>
     <div id="f1">
+      <label style="text-align:center">صورة صاحب البطاقة (تُحفظ في المنظومة فقط)</label><label class="ph" id="phb"></label>
+      <label>اسم صاحب البطاقة</label><input id="oname" oninput="pv()" placeholder="الاسم الكامل">
       <label>رقم اللوحة / دفتر السيارة</label><input id="plate" oninput="pv()" inputmode="text">
       <label>الماركة والطراز</label><input id="model" oninput="pv()" placeholder="مثال: كيا K7">
       <label>سنة الصنع</label><input id="year" type="number" oninput="pv()" placeholder="2012">
@@ -173,9 +176,9 @@ function go(n){stopCam();document.querySelectorAll('.scr').forEach((s,i)=>s.clas
   if(n===1)renderAll();if(n===2){step(1);pv()}if(n===3){$('gv').textContent=DB.gap+' أيام'}if(n===4)renderLog();window.scrollTo(0,0)}
 function cardHTML(c,pre){return `<div class="top"><b>${ic('fuel')}${esc(DB.org)}</b><span>${esc(c.issued||'')}</span></div>
 <div><span class="chipc"></span><div class="no">${esc(c.id)}</div></div>
-<div class="mid"><div><div class="nm">${esc(c.model||'الماركة والطراز')} ${esc(c.year||'')}</div><div class="sub">${esc(c.plate||'رقم اللوحة')} · ${esc(c.color)} · ${esc(c.fuel)}${c.vin?'<br>'+esc(c.vin):''}</div></div><div class="qr" data-q="${esc(pre?'PREVIEW':c.id)}" style="${pre?'opacity:.55':''}"></div></div>`}
+<div class="mid"><div><div class="nm">${esc(c.name||'اسم صاحب البطاقة')}</div><div class="sub" style="font-size:13px;opacity:1;margin-bottom:2px">${esc(c.model||'الماركة والطراز')} ${esc(c.year||'')}</div><div class="sub">${esc(c.plate||'رقم اللوحة')} · ${esc(c.color)} · ${esc(c.fuel)}${c.vin?'<br>'+esc(c.vin):''}</div></div><div class="qr" data-q="${esc(pre?'PREVIEW':c.id)}" style="${pre?'opacity:.55':''}"></div></div>`}
 function mountQR(root){root.querySelectorAll('.qr').forEach(e=>{e.innerHTML='';new QRCode(e,{text:e.dataset.q,width:76,height:76,correctLevel:QRCode.CorrectLevel.M})})}
-function draft(){return{id:'SBH-XXXXXXXX',plate:$('plate').value.trim(),model:$('model').value.trim(),year:$('year').value,color,fuel,vin:$('vin').value.trim(),issued:new Date().toISOString().slice(0,10)}}
+function draft(){return{id:'SBH-XXXXXXXX',name:$('oname').value.trim(),photo:curPhoto,plate:$('plate').value.trim(),model:$('model').value.trim(),year:$('year').value,color,fuel,vin:$('vin').value.trim(),issued:new Date().toISOString().slice(0,10)}}
 let pvInit=false;
 function pv(){const el=$('pv'),c=draft();if(!pvInit){el.innerHTML=cardHTML(c,true);mountQR(el);pvInit=true;return}
   const keep=el.querySelector('.qr');const tmp=document.createElement('div');tmp.innerHTML=cardHTML(c,true);
@@ -184,17 +187,36 @@ function step(n){$('f1').classList.toggle('hide',n!==1);$('f2').classList.toggle
   $('f'+n).style.animation='none';$('f'+n).offsetHeight;$('f'+n).style.animation=''; $('f'+n).classList.add('scr','on')}
 function buildPickers(){$('sw').innerHTML=COLORS.map(([n,h])=>`<div class="sw ${n===color?'on':''}" style="background:${h}" title="${n}" onclick="color='${n}';buildPickers();pv()"></div>`).join('');
   $('fu').innerHTML=FUELS.map(f=>`<button class="chip ${f===fuel?'on':''}" onclick="fuel='${f}';buildPickers();pv()">${f}</button>`).join('')}
+let curPhoto='';
+function setPhotoUI(){const b=$('phb');b.innerHTML=(curPhoto?'<img src="'+curPhoto+'">':'<span>اضغط لإضافة صورة</span>')+'<input type="file" accept="image/*" class="hide" onchange="pickPhoto(this)">'}
+function pickPhoto(inp){const f=inp.files[0];if(!f)return;const img=new Image();img.onload=()=>{const m=Math.min(img.width,img.height),c=document.createElement('canvas');c.width=c.height=280;c.getContext('2d').drawImage(img,(img.width-m)/2,(img.height-m)/2,m,m,0,0,280,280);curPhoto=c.toDataURL('image/jpeg',.78);URL.revokeObjectURL(img.src);setPhotoUI();toast('تمت إضافة الصورة')};img.onerror=()=>toast('تعذّر قراءة الصورة');img.src=URL.createObjectURL(f)}
+function idb(c){return '<div style="margin:6px 0 10px">'+(c.photo?'<img src="'+c.photo+'" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid var(--bd)">':'')+'<div style="font-weight:700;font-size:16px;margin-top:6px">'+esc(c.name||'')+'</div></div>'}
+function av(c){return c.photo?'<img src="'+c.photo+'" style="width:42px;height:42px;border-radius:13px;object-fit:cover;flex:none">':'<div class="av">'+ic('fuel')+'</div>'}
 function newId(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';const a=new Uint32Array(8);crypto.getRandomValues(a);let s='';a.forEach(x=>s+=c[x%c.length]);return 'SBH-'+s}
-function issue(){const c=draft();if(!c.model&&!c.plate){toast('أدخل الماركة أو رقم اللوحة');step(1);return}
+function issue(){const c=draft();if(!c.name||(!c.model&&!c.plate)){toast('أدخل اسم صاحب البطاقة والماركة أو رقم اللوحة');step(1);return}
   c.id=newId();c.last=null;c.active=true;DB.cards[c.id]=c;save();buzz();
-  ['plate','model','year','vin'].forEach(i=>$(i).value='');pvInit=false;showCard(c.id,true)}
+  ['plate','model','year','vin','oname'].forEach(i=>$(i).value='');curPhoto='';setPhotoUI();pvInit=false;showCard(c.id,true)}
 function showCard(id,fresh){const c=DB.cards[id];if(!c)return;
   $('sheet').innerHTML=`<div class="grab"></div><div id="host"><div class="card">${cardHTML(c)}</div></div>
+  <div class="item" style="margin-top:10px">${av(c)}<div class="t"><b>${esc(c.name||'')}</b><small style="direction:rtl">${c.photo?'الصورة محفوظة في المنظومة فقط':'بدون صورة'}</small></div></div>
   <p class="rs"><span style="color:var(--mut);font-size:12.5px">${fresh?'تم إصدار البطاقة بنجاح. ':''}يحتوي الرمز على رقم البطاقة فقط.</span></p>
-  <div class="row"><button class="btn alt" onclick="copyId('${c.id}')">${ic('copy')}نسخ</button><button class="btn alt" onclick="shareId('${c.id}')">${ic('share')}مشاركة</button><button class="btn" onclick="window.print()">${ic('print')}طباعة</button></div>`;
+  <div class="row"><button class="btn alt" onclick="copyId('${c.id}')">${ic('copy')}نسخ</button><button class="btn alt" onclick="shareId('${c.id}')">${ic('share')}مشاركة</button><button class="btn" onclick="saveImg('${c.id}')">${ic('print')}حفظ صورة</button></div>`;
   mountQR($('sheet'));openSheet()}
 function copyId(id){try{navigator.clipboard.writeText(id).then(()=>toast('تم نسخ الرقم'),()=>toast(id))}catch(e){toast(id)}}
-function shareId(id){try{navigator.share?navigator.share({title:'بطاقة وقود',text:id}):copyId(id)}catch(e){copyId(id)}}
+const P2=CanvasRenderingContext2D.prototype;if(!P2.roundRect)P2.roundRect=function(a,b,c,d){this.rect(a,b,c,d)};
+function cardImg(id){const c=DB.cards[id],W=900,H=556,cn=document.createElement('canvas');cn.width=W;cn.height=H;const x=cn.getContext('2d');
+ const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,'#08364d');g.addColorStop(.55,'#0f5d82');g.addColorStop(1,'#1a8bb8');
+ x.fillStyle=g;x.beginPath();x.roundRect(0,0,W,H,40);x.fill();x.fillStyle='#f59e0b';x.fillRect(0,H-14,W,14);
+ x.fillStyle='#fff';x.direction='rtl';x.textAlign='right';x.font='bold 34px system-ui,sans-serif';x.fillText(DB.org,W-50,80);
+ x.direction='ltr';x.textAlign='left';x.font='28px system-ui,sans-serif';x.fillText(c.issued||'',50,80);x.font='bold 62px monospace';x.fillText(c.id,50,230);
+ x.direction='rtl';x.textAlign='right';x.font='bold 46px system-ui,sans-serif';x.fillText(c.name||'',W-50,350);x.font='32px system-ui,sans-serif';x.fillText((c.model||'')+' '+(c.year||''),W-50,402);x.font='28px system-ui,sans-serif';x.fillText((c.plate||'')+' · '+c.color+' · '+c.fuel,W-50,452);
+ const t=document.createElement('div');new QRCode(t,{text:c.id,width:420,height:420,correctLevel:QRCode.CorrectLevel.M});const q=t.querySelector('canvas');
+ x.fillStyle='#fff';x.beginPath();x.roundRect(50,290,230,230,20);x.fill();if(q)x.drawImage(q,60,300,210,210);return cn}
+function saveImg(id){const u=cardImg(id).toDataURL('image/png');$('sheet').innerHTML=`<div class="grab"></div><img src="${u}" style="width:100%;border-radius:16px"><p class="rs"><span style="color:var(--mut);font-size:13px">اضغط مطولاً على الصورة ثم «حفظ الصورة»، أو التقط لقطة شاشة.</span></p><button class="btn alt" onclick="showCard('${id}')">رجوع</button>`}
+async function shareId(id){try{const cn=cardImg(id);const b=await new Promise(r=>cn.toBlob(r,'image/png'));const f=new File([b],id+'.png',{type:'image/png'});
+ if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'بطاقة وقود',text:id});return}
+ if(navigator.share){await navigator.share({title:'بطاقة وقود',text:id});return}}catch(e){if(e&&e.name==='AbortError')return}
+ copyId(id);toast('المشاركة غير مدعومة هنا، تم نسخ الرقم. استخدم «حفظ صورة»')}
 function openSheet(){$('bk').classList.add('on');$('sheet').classList.add('on')}
 function closeSheet(){$('bk').classList.remove('on');$('sheet').classList.remove('on');busy=false}
 function state(c){if(!c.active)return['frozen','مجمّدة'];const now=Date.now();
@@ -202,8 +224,8 @@ function state(c){if(!c.active)return['frozen','مجمّدة'];const now=Date.no
 function renderAll(){const t=new Date().toDateString();
   $('st1').textContent=Object.keys(DB.cards).length;$('st2').textContent=DB.log.filter(l=>l.ok&&new Date(l.t).toDateString()===t).length;$('st3').textContent=DB.log.filter(l=>!l.ok&&new Date(l.t).toDateString()===t).length;renderList()}
 function renderList(){const q=($('q').value||'').toLowerCase();
-  const a=Object.values(DB.cards).filter(c=>(c.id+c.plate+c.model).toLowerCase().includes(q)).reverse();
-  $('list').innerHTML=a.length?a.map(c=>{const[s,l]=state(c);return `<div class="item"><div class="av">${ic('fuel')}</div><div class="t"><b>${esc(c.model||c.plate)}</b><small>${esc(c.id)}</small></div><span class="bd ${s}">${l}</span>
+  const a=Object.values(DB.cards).filter(c=>(c.id+c.plate+c.model+(c.name||'')).toLowerCase().includes(q)).reverse();
+  $('list').innerHTML=a.length?a.map(c=>{const[s,l]=state(c);return `<div class="item">${av(c)}<div class="t"><b>${esc(c.name||c.model||c.plate)}</b><small>${esc(c.id)}</small></div><span class="bd ${s}">${l}</span>
   <div class="acts"><button class="ib" onclick="showCard('${c.id}')">${ic('eye')}</button><button class="ib" onclick="freeze('${c.id}')">${ic('lock')}</button><button class="ib" onclick="del('${c.id}')">${ic('trash')}</button></div></div>`}).join(''):'<div class="empty">لا توجد بطاقات. اضغط «إصدار» لإنشاء أول بطاقة.</div>'}
 function freeze(id){const c=DB.cards[id];c.active=!c.active;save();renderAll();toast(c.active?'تم تفعيل البطاقة':'تم تجميد البطاقة')}
 function ask(msg,fn){window._cb=fn;$('sheet').innerHTML=`<div class="grab"></div><div class="rs"><h3>${msg}</h3></div><div class="row"><button class="btn alt" onclick="closeSheet()">إلغاء</button><button class="btn bad" onclick="closeSheet();window._cb()">تأكيد</button></div>`;openSheet()}
@@ -217,10 +239,10 @@ function scan(){const v=$('vid');if(v.readyState===4&&++fr%3===0){const w=v.vide
 function gap(d){DB.gap=Math.min(30,Math.max(0,DB.gap+d));$('gv').textContent=DB.gap+' أيام';save()}
 function check(raw){const id=(raw||'').trim().toUpperCase(),c=DB.cards[id],now=Date.now();busy=true;let h;
   if(!c){h=`<div class="rs"><div class="big no"><svg class="i" viewBox="0 0 24 24"><path d="${P.x}"/></svg></div><h3>بطاقة غير معروفة</h3><p style="direction:ltr">${esc(id||'—')}</p></div><button class="btn alt" onclick="closeSheet()">إغلاق</button>`}
-  else if(!c.active){log(id,false);h=`<div class="rs"><div class="big no"><svg class="i" viewBox="0 0 24 24"><path d="${P.lock}"/></svg></div><h3>البطاقة مجمّدة</h3><p>${esc(c.model)} · ${esc(c.plate)}</p></div><button class="btn alt" onclick="closeSheet()">إغلاق</button>`}
+  else if(!c.active){log(id,false);h=`<div class="rs"><div class="big no"><svg class="i" viewBox="0 0 24 24"><path d="${P.lock}"/></svg></div><h3>البطاقة مجمّدة</h3>${idb(c)}<p>${esc(c.model)} · ${esc(c.plate)}</p></div><button class="btn alt" onclick="closeSheet()">إغلاق</button>`}
   else if(c.last&&now-c.last<GAPMS()){const l=c.last+GAPMS()-now;log(id,false);
-    h=`<div class="rs"><div class="big no"><svg class="i" viewBox="0 0 24 24"><path d="${P.x}"/></svg></div><h3>غير مسموح بالتعبئة</h3><p>${esc(c.model)} · ${esc(c.plate)}</p><p>آخر تعبئة: ${fmt(c.last)}</p><p>المتبقي: ${Math.floor(l/864e5)} يوم و${Math.ceil(l%864e5/36e5)} ساعة</p><p>الموعد القادم: ${fmt(c.last+GAPMS())}</p></div><button class="btn alt" onclick="closeSheet()">إغلاق</button>`}
-  else{h=`<div class="rs"><div class="big ok"><svg class="i" viewBox="0 0 24 24"><path d="${P.chk}"/></svg></div><h3>مسموح بالتعبئة</h3><p>${esc(c.model)} · ${esc(c.plate)} · ${esc(c.fuel)}</p><p>${c.last?'آخر تعبئة: '+fmt(c.last):'أول تعبئة لهذه البطاقة'}</p></div>
+    h=`<div class="rs"><div class="big no"><svg class="i" viewBox="0 0 24 24"><path d="${P.x}"/></svg></div><h3>غير مسموح بالتعبئة</h3>${idb(c)}<p>${esc(c.model)} · ${esc(c.plate)}</p><p>آخر تعبئة: ${fmt(c.last)}</p><p>المتبقي: ${Math.floor(l/864e5)} يوم و${Math.ceil(l%864e5/36e5)} ساعة</p><p>الموعد القادم: ${fmt(c.last+GAPMS())}</p></div><button class="btn alt" onclick="closeSheet()">إغلاق</button>`}
+  else{h=`<div class="rs"><div class="big ok"><svg class="i" viewBox="0 0 24 24"><path d="${P.chk}"/></svg></div><h3>مسموح بالتعبئة</h3>${idb(c)}<p>${esc(c.model)} · ${esc(c.plate)} · ${esc(c.fuel)}</p><p>${c.last?'آخر تعبئة: '+fmt(c.last):'أول تعبئة لهذه البطاقة'}</p></div>
     <label>الكمية (لتر)</label><input id="qty" type="number" inputmode="numeric" placeholder="40"><div class="chips" style="margin-top:10px">${[20,30,40,60].map(n=>`<button class="chip" onclick="$('qty').value=${n}">${n}</button>`).join('')}</div>
     <button class="btn" onclick="fill('${id}')">${ic('chk')}تسجيل التعبئة</button><button class="btn alt" onclick="closeSheet()">إلغاء</button>`}
   $('sheet').innerHTML='<div class="grab"></div>'+h;openSheet()}
@@ -232,7 +254,7 @@ function renderLog(){const a=DB.log.filter(l=>filter==='all'||(filter==='ok')===
 function csv(){const t='time,card,result,liters\n'+DB.log.map(l=>[new Date(l.t).toISOString(),l.id,l.ok?'ok':'denied',l.qty||''].join(',')).join('\n');copyId(t);toast('تم نسخ السجل')}
 function wipe(){ask('حذف كل البطاقات والسجل؟',()=>{DB.cards={};DB.log=[];save();renderLog();renderAll();toast('تم المسح')})}
 function openSet(){$('sheet').innerHTML=`<div class="grab"></div><h2>الإعدادات</h2><label>اسم الجهة (يظهر على البطاقة)</label><input id="org" value="${esc(DB.org)}"><button class="btn" onclick="DB.org=$('org').value||'منظومة الوقود';$('orgT').textContent=DB.org;save();pvInit=false;closeSheet();toast('تم الحفظ')">حفظ</button>`;openSheet()}
-$('orgT').textContent=DB.org;buildPickers();renderAll();
+$('orgT').textContent=DB.org;buildPickers();setPhotoUI();renderAll();
 </script>
 </body>
 </html>
